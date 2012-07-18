@@ -8,8 +8,8 @@ class AppBuilder
     def file_template( opts = {} )
 <<-eos
 #{"import processing.opengl.*;" if opts[:mode]=="opengl"}
-#{"final static short DISPLAY_WIDTH = #{opts[:width]};" if opts[:width != 0]}
-#{"final static short DISPLAY_HEIGHT = #{opts[:height]};" if opts[:height != 0]}
+#{"final static short DISPLAY_WIDTH = #{opts[:width]};" if opts[:width] != 0}
+#{"final static short DISPLAY_HEIGHT = #{opts[:height]};" if opts[:height] != 0}
 final static short FRAMERATE = #{opts[:fps]};
 final static Boolean IS_DEBUG = true;
 final static short BASE_DISPLAY_WIDTH = 1920;
