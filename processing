@@ -1,0 +1,94 @@
+#!/usr/bin/env ruby
+
+require "trollop"
+require "active_support/inflector"
+
+class AppBuilder
+  class << self
+    def file_template( opts = {} )
+<<-eos
+#{"import processing.opengl.*;" if opts[:mode]=="opengl"}
+#{"final static short DISPLAY_WIDTH = #{opts[:width]};" if opts[:width != 0]}
+#{"final static short DISPLAY_HEIGHT = #{opts[:height]};" if opts[:height != 0]}
+final static short FRAMERATE = #{opts[:fps]};
+final static Boolean IS_DEBUG = true;
+final static short BASE_DISPLAY_WIDTH = 1920;
+
+color bg_color;
+PFont fps_font;
+float scale_factor;
+
+public void setup() {
+  TimeZone.setDefault( TimeZone.getTimeZone( "Europe/Moscow" ) );
+  noStroke();
+  size( #{opts[:width]==0 ? "screenWidth" : "DISPLAY_WIDTH"}, #{opts[:height]==0 ? "screenHeight" : "DISPLAY_HEIGHT"}, #{opts[:mode].upcase} );
+  frameRate( FRAMERATE );
+  smooth();
+  bg_color = color( 0 );
+  if ( IS_DEBUG )
+    setupFPS();
+  scale_factor = (float)screenWidth / (float)BASE_DISPLAY_WIDTH;
+}
+
+public void setupFPS() {
+  //fps_font = loadFont( "DaxlinePro-Bold-24.vlw" );
+}
+
+public void draw() {
+  background( bg_color );
+  // place code here
+  if ( IS_DEBUG )
+    drawFPS();
+}
+
+public void drawFPS() {
+  fill( 255 );
+  //textFont( fps_font, round( 24 * scale_factor ) );
+  text( ( (Integer)round( frameRate ) ).toString(), 20, 20, 36, 36 );
+}
+eos
+    end
+
+    def create!( opts = {} )
+      app_name = ARGV[ 0 ].camelize
+      if !opts[ :force ]
+        print "Application named \"#{app_name}\" would be created. Continue(y/n)?\n"
+        confirm = STDIN.gets
+        Trollop.die( "Nothing to do. Exiting") until !confirm.match(/^y/).nil?
+      end
+      app_folder_name = "#{opts[:path]}/#{app_name}"
+      Trollop.die( "Folder named \"#{app_folder_name}\" already exists" ) if Dir.exist?( app_folder_name )
+      Dir.mkdir( app_folder_name, 0755 );
+      File.open( "#{app_folder_name}/#{app_name}.pde", "w+" ) do |file|
+        file.write( file_template( opts ) )
+        file.close
+      end
+      if opts[ :git ]
+        Dir.chdir( app_folder_name )
+        system( "git init" )
+      end
+      print "Done\n"
+    end
+  end
+end
+
+opts = Trollop::options do
+  banner "Processing app builder"
+  opt :mode, "Video mode, default is opengl, available modes: opengl, p2d, p3d", :default => "opengl", :short => "-m"
+  opt :fps, "Sketch rendering fps", :default => 60, :type => :int
+  opt :width, "Sketch screen width, default is 0 means fill all the screen", :default => 0, :type => :int, :short => "-w"
+  opt :height, "Sketch screen height, default is 0 means fill all the screen", :default => 0, :type => :int, :short => "-h"
+  opt :path, "Sketch work folder, default is current", :default => Dir.pwd, :short => "-p"
+  opt :force, "Skip prompt steps", :default => false, :short => "-f"
+  opt :git, "Initialize git repository", :default => true, :short => "-g"
+end
+
+cmd = ARGV.shift
+
+case cmd
+  when "create", "c"
+    AppBuilder.create!( opts )
+  else
+    Trollop::die "unknown \"#{cmd}\" command given"
+  end
+
